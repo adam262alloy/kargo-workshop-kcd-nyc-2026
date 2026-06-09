@@ -1,0 +1,44 @@
+# Custom promotion steps (Kargo Enterprise). These are cluster-scoped and shared
+# by every project on the Kargo instance.
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: CustomPromotionStep
+metadata:
+  name: trivy-image
+spec:
+  # Latest Trivy scanner image (see https://github.com/aquasecurity/trivy/releases).
+  image: aquasec/trivy:0.71.0
+  # The executor runs as a non-root user with HOME=/, which Trivy can't write to.
+  # Point its cache/HOME at /tmp.
+  env:
+    - name: HOME
+      value: /tmp
+    - name: TRIVY_CACHE_DIR
+      value: /tmp/.trivycache
+  command:
+    - trivy
+    - image
+    - --severity=HIGH,CRITICAL
+    - --no-progress
+    # Report only. Set to 1 to gate and see the failure
+    - --exit-code=0
+    - ${{ config.image }}
+  output:
+    source:
+      format: Text
+      type: Stdout
+    transform:
+      report: output
+---
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: CustomPromotionStep
+metadata:
+  name: hello-world
+spec:
+  image: busybox:1.37.0
+  command:
+    - sh
+    - -c
+    - |
+      MSG="${{ config.message }}"
+      echo "$MSG"
+      printf 'message=%s' "$MSG" > "$KARGO_OUTPUT"

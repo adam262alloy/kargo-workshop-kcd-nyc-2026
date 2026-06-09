@@ -1,0 +1,7 @@
+# Promotion target for the prod-amer-east region. Rendered by the prod stage.
+stage: prod-amer-east
+replicaCount: 2
+image:
+  tag: latest
+env:
+  LAMBDA_URL: ""

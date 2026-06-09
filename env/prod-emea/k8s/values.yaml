@@ -1,0 +1,7 @@
+# Promotion target for the prod-emea region. Rendered by the prod stage.
+stage: prod-emea
+replicaCount: 2
+image:
+  tag: latest
+env:
+  LAMBDA_URL: ""

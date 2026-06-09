@@ -1,0 +1,25 @@
+apiVersion: ee.kargo.akuity.io/v1alpha1
+kind: EventRouter
+metadata:
+  name: promotion-status
+  namespace: guestbook
+  annotations:
+    argocd.argoproj.io/sync-wave: "1" # after the channel
+spec:
+  types:
+    - PromotionSucceeded
+    - PromotionFailed
+    - PromotionErrored
+  channels:
+    - name: email
+      kind: MessageChannel
+      encodingType: yaml
+      output: |
+        to: [your@email.address]
+        subject: "[Kargo] ${{ type }} — ${{ event.project }}/${{ event.stageName }}"
+        html: false
+        body: |
+          Project:   ${{ event.project }}
+          Stage:     ${{ event.stageName }}
+          Promotion: ${{ event.name }}
+          Result:    ${{ type }}

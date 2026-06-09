@@ -1,0 +1,21 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: guestbook
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: guestbook
+  namespace: guestbook
+spec:
+  promotionPolicies:
+    # dev auto-promotes new freight as soon as it is discovered.
+    - stageSelector:
+        name: dev
+      autoPromotionEnabled: true
+    # the regional prod stages fan out automatically once prod completes.
+    - stageSelector:
+        name: "regex:prod-.*"
+      autoPromotionEnabled: true
+    # staging and prod are gated (manual promotion).

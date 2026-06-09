@@ -1,0 +1,19 @@
+.muted {
+    color: var(--muted, #6b7280);
+    font-size: 0.9rem;
+}
+.error {
+    color: #b91c1c;
+    font-size: 0.9rem;
+}
+#entries li {
+    margin-bottom: 0.25rem;
+}
+#backend {
+    word-break: break-all;
+}
+form {
+    display: grid;
+    gap: 0.5rem;
+    max-width: 32rem;
+}

@@ -1,0 +1,6 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: guestbook
+# No ProjectConfig yet: with no promotion policies, every stage is promoted
+# manually — which is exactly what we want for a first promotion.

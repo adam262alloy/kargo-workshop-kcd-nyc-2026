@@ -1,0 +1,7 @@
+# Promotion target for the dev stage. Kargo updates image.tag and env.LAMBDA_URL.
+stage: dev
+replicaCount: 1
+image:
+  tag: latest
+env:
+  LAMBDA_URL: ""

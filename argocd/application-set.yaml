@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - stage: dev
+          - stage: staging
+          - stage: prod-amer-east
+          - stage: prod-amer-west
+          - stage: prod-emea
+  template:
+    metadata:
+      name: 'guestbook-{{.stage}}'
+      annotations:
+        # Authorizes the matching Kargo stage to run argocd-update against this app.
+        kargo.akuity.io/authorized-stage: 'guestbook:{{.stage}}'
+    spec:
+      project: guestbook
+      source:
+        repoURL: https://github.com/akuity/kargo-workshop-kcd-nyc-2026
+        targetRevision: main
+        path: charts/guestbook
+        helm:
+          valueFiles:
+            - /env/{{.stage}}/k8s/values.yaml
+      destination:
+        name: orbstack
+        namespace: 'guestbook-{{.stage}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

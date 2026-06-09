@@ -1,0 +1,82 @@
+# Verification AnalysisTemplates. Kargo runs these after a promotion. The Job pods
+# run in the Kargo agent namespace on the workload cluster, so they reach the
+# guestbook via in-cluster DNS: http://guestbook.guestbook-<stage>.svc.cluster.local
+# Each one simply checks the app is up (HTTP 200) and is really our guestbook.
+# ---------------------------------------------------------------------------
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: smoke-test
+  namespace: guestbook
+spec:
+  args:
+    - name: stage
+  metrics:
+    - name: smoke-test
+      provider:
+        job:
+          spec:
+            backoffLimit: 0
+            activeDeadlineSeconds: 90
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: smoke
+                    image: curlimages/curl:8.11.0
+                    env:
+                      - name: BASE
+                        value: "http://guestbook.guestbook-{{args.stage}}.svc.cluster.local"
+                    command: ["/bin/sh", "-c"]
+                    args:
+                      - |
+                        set -eu
+                        echo "Smoke testing guestbook at $BASE"
+                        # Wait for the home page to return 200 (allow for rollout).
+                        for i in $(seq 1 20); do
+                          if curl -fsS -o /tmp/index "$BASE/"; then break; fi
+                          echo "  attempt $i: not ready, retrying..."; sleep 2
+                        done
+                        # It must be up and actually be our guestbook app.
+                        grep -q "Kargo Guestbook" /tmp/index || { echo "FAIL: guestbook home page not served"; exit 1; }
+                        echo "PASS: guestbook is up"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: e2e-test
+  namespace: guestbook
+spec:
+  args:
+    - name: stage
+      value: staging
+  metrics:
+    - name: e2e
+      provider:
+        job:
+          spec:
+            backoffLimit: 0
+            activeDeadlineSeconds: 90
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: e2e
+                    image: curlimages/curl:8.11.0
+                    env:
+                      - name: BASE
+                        value: "http://guestbook.guestbook-{{args.stage}}.svc.cluster.local"
+                    command: ["/bin/sh", "-c"]
+                    args:
+                      - |
+                        set -eu
+                        echo "E2E testing guestbook at $BASE"
+                        # Wait for the home page to return 200 (allow for rollout).
+                        for i in $(seq 1 20); do
+                          if curl -fsS -o /tmp/index "$BASE/"; then break; fi
+                          echo "  attempt $i: not ready, retrying..."; sleep 2
+                        done
+                        # It must be up, be our guestbook, and have the entry form wired up.
+                        grep -q "Kargo Guestbook" /tmp/index || { echo "FAIL: guestbook home page not served"; exit 1; }
+                        grep -q 'id="entry-form"' /tmp/index || { echo "FAIL: guestbook form missing"; exit 1; }
+                        echo "PASS: guestbook is up and interactive"

@@ -1,0 +1,248 @@
+# dev -> staging -> prod -> {prod-amer-east, prod-amer-west, prod-emea}.
+# prod is a control/gate stage: it renders each region's values and commits them;
+# the regional stages then auto-promote (fan-out) and sync their Argo CD app.
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/color: red
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-dev","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        direct: true
+  promotionTemplate:
+    spec:
+      vars:
+        - name: repoURL
+          value: https://github.com/akuity/kargo-workshop-kcd-nyc-2026
+        - name: image
+          value: ghcr.io/akuity/kargo-workshop-kcd-nyc-2026
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        - uses: yaml-update
+          config:
+            path: ./repo/env/dev/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: |
+              Promote ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }}
+        - uses: git-push
+          config:
+            path: ./repo
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-dev
+                namespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/color: amber
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-staging","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - dev
+  promotionTemplate:
+    spec:
+      vars:
+        - name: repoURL
+          value: https://github.com/akuity/kargo-workshop-kcd-nyc-2026
+        - name: image
+          value: ghcr.io/akuity/kargo-workshop-kcd-nyc-2026
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        - uses: yaml-update
+          config:
+            path: ./repo/env/staging/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: |
+              Promote ${{ imageFrom(vars.image).Tag }} to ${{ ctx.stage }}
+        - uses: git-push
+          config:
+            path: ./repo
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-staging
+                namespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/color: violet
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - staging
+  promotionTemplate:
+    spec:
+      vars:
+        - name: repoURL
+          value: https://github.com/akuity/kargo-workshop-kcd-nyc-2026
+        - name: image
+          value: ghcr.io/akuity/kargo-workshop-kcd-nyc-2026
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.repoURL }}
+            author:
+              name: kargo-bot
+              email: kargo-bot@workshop.local
+            checkout:
+              - branch: main
+                path: ./repo
+        # Render values for each region from the same freight.
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-east/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-amer-west/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: yaml-update
+          config:
+            path: ./repo/env/prod-emea/k8s/values.yaml
+            updates:
+              - key: image.tag
+                value: ${{ imageFrom(vars.image).Tag }}
+        - uses: git-commit
+          config:
+            path: ./repo
+            message: |
+              Promote ${{ imageFrom(vars.image).Tag }} to production (all regions)
+        - uses: git-push
+          config:
+            path: ./repo
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-amer-east
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/color: violet
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-prod-amer-east","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - prod
+        autoPromotionOptions:
+          selectionPolicy: MatchUpstream
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-prod-amer-east
+                namespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-amer-west
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/color: violet
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-prod-amer-west","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - prod
+        autoPromotionOptions:
+          selectionPolicy: MatchUpstream
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-prod-amer-west
+                namespace: argocd
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod-emea
+  namespace: guestbook
+  annotations:
+    kargo.akuity.io/color: violet
+    kargo.akuity.io/argocd-context: '[{"name":"guestbook-prod-emea","namespace":"argocd"}]'
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: app
+      sources:
+        stages:
+          - prod
+        autoPromotionOptions:
+          selectionPolicy: MatchUpstream
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: argocd-update
+          config:
+            apps:
+              - name: guestbook-prod-emea
+                namespace: argocd

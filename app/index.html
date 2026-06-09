@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kargo Guestbook</title>
+  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- config.js is generated at container start from the LAMBDA_URL env var -->
+  <script src="config.js"></script>
+</head>
+<body>
+  <header>
+    <h1>📓 Kargo Guestbook</h1>
+    <p>
+      Served from <strong id="stage">an environment</strong>.
+      When a Lambda Function URL is promoted in (via Terraform), the backend
+      greeting below is fetched from it ("beyond Kubernetes").
+    </p>
+    <p id="backend" class="muted"></p>
+  </header>
+
+  <main>
+    <form id="entry-form">
+      <label for="name">Name</label>
+      <input id="name" name="name" type="text" placeholder="Ada Lovelace" required />
+      <label for="message">Message</label>
+      <input id="message" name="message" type="text" placeholder="Hello from KCD NYC!" required />
+      <button type="submit">Sign the guestbook</button>
+    </form>
+
+    <p id="status" class="muted"></p>
+
+    <h2>Recent entries</h2>
+    <ul id="entries"><li class="muted">Loading…</li></ul>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

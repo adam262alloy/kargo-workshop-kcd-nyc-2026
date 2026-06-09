@@ -1,0 +1,47 @@
+name: Publish guestbook image
+
+on:
+  push:
+    branches:
+      - main
+    # Only rebuild when the frontend source changes (not on Kargo's env/ commits).
+    paths:
+      - 'app/**'
+      - '.github/workflows/publish-app-image.yml'
+  workflow_dispatch: {}
+
+permissions:
+  packages: write
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          # Multi-arch so the image runs on amd64 and arm64 (e.g. Apple Silicon).
+          platforms: linux/amd64,linux/arm64
+          push: true
+          # Kargo's Warehouse selects the newest image whose tag matches ^[0-9]+$.
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
