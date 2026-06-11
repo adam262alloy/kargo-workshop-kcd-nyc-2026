@@ -17,3 +17,5 @@ crash.log
 # Python
 __pycache__/
 *.pyc
+
+manifests/
